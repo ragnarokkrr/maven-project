@@ -3,7 +3,17 @@ pipeline {
     tools {
         maven 'localMaven'
     }
-    stages {
+
+    parameters {
+        string(name: 'tomcat_dev', defaultValue: 'localhost', description: 'Staging Server')
+        string(name: 'tomcat_prod', defaultValue: 'localhost', description: 'Production Server')
+    }
+
+    triggers {
+        pollSCM('* * * * *')
+    }
+
+    stages{
         stage('Build') {
             steps {
                 sh 'mvn clean package'
@@ -16,25 +26,18 @@ pipeline {
             }
         }
 
-        stage ('Deploy to Staging') {
-            steps {
-                build job: 'deploy-to-staging'
-            }
-        }
+        stage ('Deployments') {
+            parallel {
+                stage('Deploy to Staging') {
+                    steps {
+                        sh "cp **/target/*.war /home/ragnarokkrr/prj/udemy/master-jenkins-ci/apache-tomcat-9.0.13-staging/webapps"
+                    }
+                }
 
-        stage ('Deploy to Production') {
-            steps {
-                timeout(time: 5, unit: 'DAYS') {
-                    input message: 'Approve PRODUCTION Deploymnet'
-                }
-                build job: 'deploy-to-prod'
-            }
-            post {
-                success {
-                    echo 'Code deployed to Production.'
-                }
-                failure {
-                    echo 'Deployment failed.'
+                stage('Deploy to Production') {
+                    steps {
+                        sh "cp **/target/*.war /home/ragnarokkrr/prj/udemy/master-jenkins-ci/apache-tomcat-9.0.13-prod/webapps"
+                    }
                 }
             }
         }
